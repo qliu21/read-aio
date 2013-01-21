@@ -40,35 +40,36 @@ int main (int argc, char ** argv)
  //   MPI_Comm_rank (comm, &rank);
   //  MPI_Comm_size (comm, &size);
 
-    file = H5Fopen("adios_global_0.bp", H5F_ACC_RDONLY, H5P_DEFAULT);
-    dataset = H5Dopen(file, "temperature_10");
+    file = H5Fopen("adios_global.bp", H5F_ACC_RDONLY, H5P_DEFAULT);
+    dataset = H5Dopen(file, "index");
     filespace = H5Dget_space(dataset);    /* Get filespace handle first. */
     ndims     = H5Sget_simple_extent_ndims(filespace);
 
     hsize_t dims[ndims];
     herr_t status_n  = H5Sget_simple_extent_dims(filespace, dims, NULL);
-    printf("dataset rank %d, dimensions %lu x %lu\n",
-	   ndims, (unsigned long)(dims[0]), (unsigned long)(dims[1]));
+    printf("dataset rank %d, dimensions %lu\n",
+	   ndims, (unsigned long)(dims[0])));
 
     /*
      * Define the memory space to read dataset.
      */
     memspace = H5Screate_simple(ndims,dims,NULL);
 
-    double data_out[dims[0]][dims[1]];
+    int data_out[dims[0]];
  
     /*
      * Read dataset back and display.
      */
-    herr_t status = H5Dread(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
+    herr_t status = H5Dread(dataset, H5T_NATIVE_INT, memspace, filespace,
 		     H5P_DEFAULT, data_out);
     printf("\n");
     printf("Dataset: \n");
-    for (j = 0; j < dims[0]; j++) {
-	for (i = 0; i < dims[1]; i++) printf("%f ", data_out[j][i]);
-	printf("\n");
+    for (j = 0; j < dims[0]; j++)
+    {
+	printf("%d ", data_out[j]);
     }     
 
+    printf("\n");
 //    MPI_Barrier (comm);
 
 //    MPI_Finalize ();
