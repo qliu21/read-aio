@@ -41,6 +41,9 @@ int main (int argc, char ** argv)
 
     int data_out[size];
 
+    struct timeval t1;
+    gettimeofday (&t1, NULL);
+
     strcpy (filename, "adios_global.bp");
     if (rank == 0)
     {
@@ -51,9 +54,10 @@ int main (int argc, char ** argv)
 
         hsize_t dims[ndims];
         herr_t status_n  = H5Sget_simple_extent_dims(filespace, dims, NULL);
+/*
         printf("dataset rank %d, dimensions %lu\n",
 	       ndims, (unsigned long)(dims[0]));
-
+*/
        if (dims[0] != size)
        {
            printf ("can only support same # of reader as writers\n");
@@ -108,7 +112,7 @@ int main (int argc, char ** argv)
     herr_t status = H5Dread(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
                          H5P_DEFAULT, data);
 
-
+/*
     printf("\n");
     printf("Dataset: \n");
     for (j = 0; j < dims[1]; j++)
@@ -117,9 +121,14 @@ int main (int argc, char ** argv)
     }
 
     printf("\n");
+*/
+    MPI_Barrier (comm);
+    struct timeval t2;
+    gettimeofday (&t2, NULL);
 
-//    MPI_Barrier (comm);
- 
+    if (rank == 0)
+        printf("read time: %.6lf\n", t2.tv_sec + t2.tv_usec/1000000.0 - t1.tv_sec - t1.tv_usec/1000000.0); 
+
     MPI_Finalize ();
     return 0;
 }
