@@ -20,15 +20,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include "mpi.h"
+#include "mpi.h"
 #include "hdf5.h"
 
 int main (int argc, char ** argv) 
 {
     char        filename [256];
     int         rank, size, i, j;
-//    MPI_Comm    comm = MPI_COMM_WORLD;
-    void * data = NULL;
+    MPI_Comm    comm = MPI_COMM_WORLD;
     uint64_t start[2], count[2], bytes_read = 0;
     int ndims;
     hid_t file;
@@ -36,42 +35,91 @@ int main (int argc, char ** argv)
     hid_t filespace;
     hid_t memspace;
 
-//    MPI_Init (&argc, &argv);
- //   MPI_Comm_rank (comm, &rank);
-  //  MPI_Comm_size (comm, &size);
+    MPI_Init (&argc, &argv);
+    MPI_Comm_rank (comm, &rank);
+    MPI_Comm_size (comm, &size);
 
-    file = H5Fopen("adios_global.bp", H5F_ACC_RDONLY, H5P_DEFAULT);
-    dataset = H5Dopen(file, "index");
+    int data_out[size];
+
+    strcpy (filename, "adios_global.bp");
+    if (rank == 0)
+    {
+        file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
+        dataset = H5Dopen(file, "index");
+        filespace = H5Dget_space(dataset);    /* Get filespace handle first. */
+        ndims     = H5Sget_simple_extent_ndims(filespace);
+
+        hsize_t dims[ndims];
+        herr_t status_n  = H5Sget_simple_extent_dims(filespace, dims, NULL);
+        printf("dataset rank %d, dimensions %lu\n",
+	       ndims, (unsigned long)(dims[0]));
+
+       if (dims[0] != size)
+       {
+           printf ("can only support same # of reader as writers\n");
+           exit (0);
+       }
+       /*
+        * Define the memory space to read dataset.
+        */
+        memspace = H5Screate_simple(ndims,dims,NULL);
+
+        /*
+         * Read dataset back and display.
+         */
+        herr_t status = H5Dread(dataset, H5T_NATIVE_INT, memspace, filespace,
+	          	     H5P_DEFAULT, data_out);
+    }
+
+    MPI_Bcast (data_out, size, MPI_INT, 0, comm);
+
+    // data is in f_idx subfile.
+    int f_idx = data_out[rank];
+    char temp_string[100], * fname;
+    strcpy (temp_string, filename);
+    fname = strtok (temp_string, ".");
+
+    sprintf (temp_string
+            ,"%s_%d.bp"
+            ,fname
+            ,f_idx
+            );
+    file = H5Fopen(temp_string, H5F_ACC_RDONLY, H5P_DEFAULT);
+    sprintf (temp_string, "temperature_%d", rank);
+    dataset = H5Dopen(file, temp_string);
     filespace = H5Dget_space(dataset);    /* Get filespace handle first. */
     ndims     = H5Sget_simple_extent_ndims(filespace);
 
     hsize_t dims[ndims];
     herr_t status_n  = H5Sget_simple_extent_dims(filespace, dims, NULL);
-    printf("dataset rank %d, dimensions %lu\n",
-	   ndims, (unsigned long)(dims[0])));
-
+/*
+    printf("dataset(temperature) rank %d, dimensions %lux%lu\n",
+               ndims, (unsigned long)(dims[0]), (unsigned long)(dims[1]));
+*/
     /*
      * Define the memory space to read dataset.
      */
     memspace = H5Screate_simple(ndims,dims,NULL);
 
-    int data_out[dims[0]];
- 
+    double data[dims[1]];
     /*
      * Read dataset back and display.
      */
-    herr_t status = H5Dread(dataset, H5T_NATIVE_INT, memspace, filespace,
-		     H5P_DEFAULT, data_out);
+    herr_t status = H5Dread(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
+                         H5P_DEFAULT, data);
+
+
     printf("\n");
     printf("Dataset: \n");
-    for (j = 0; j < dims[0]; j++)
+    for (j = 0; j < dims[1]; j++)
     {
-	printf("%d ", data_out[j]);
-    }     
+        printf("%f ", data[j]);
+    }
 
     printf("\n");
-//    MPI_Barrier (comm);
 
-//    MPI_Finalize ();
+//    MPI_Barrier (comm);
+ 
+    MPI_Finalize ();
     return 0;
 }
