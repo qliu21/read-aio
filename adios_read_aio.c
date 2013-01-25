@@ -41,11 +41,12 @@ int main (int argc, char ** argv)
 
     int data_out[size];
 
+    MPI_Barrier (comm);
     struct timeval t1;
     gettimeofday (&t1, NULL);
 
     strcpy (filename, "adios_global.bp");
-    if (rank == 0)
+//    if (rank == 0)
     {
         file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
         dataset = H5Dopen(file, "index");
@@ -75,7 +76,7 @@ int main (int argc, char ** argv)
 	          	     H5P_DEFAULT, data_out);
     }
 
-    MPI_Bcast (data_out, size, MPI_INT, 0, comm);
+//    MPI_Bcast (data_out, size, MPI_INT, 0, comm);
 
     // data is in f_idx subfile.
     int f_idx = data_out[rank];
