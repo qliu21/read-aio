@@ -29,7 +29,7 @@ int main (int argc, char ** argv)
     int         rank, size, i, j;
     MPI_Comm    comm = MPI_COMM_WORLD;
     uint64_t start[2], count[2], bytes_read = 0;
-    int ndims;
+    int ndims, nsf;
     hid_t file;
     hid_t dataset;
     hid_t filespace;
@@ -74,6 +74,23 @@ int main (int argc, char ** argv)
 	          	     H5P_DEFAULT, data_out);
     }
 
+    int temp_index[size];
+    int temp;
+    memcpy (temp_index, data_out, 4 * size);
+  
+    nsf = 0;
+    for (i = 0; i < size - 1; i++)
+    {
+        if (temp_index[i] > temp_index[i + 1])
+        {
+            temp = temp_index[i];
+            temp_index[i] = temp_index[i + 1];
+            temp_index[i + 1] = temp;
+        }
+    }
+
+    nsf = temp_index[size - 1] + 1;
+printf ("nsf = %d\n", nsf); 
     // data is in f_idx subfile.
     int f_idx = data_out[rank];
     char temp_string[100], * fname;
