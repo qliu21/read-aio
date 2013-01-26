@@ -91,26 +91,38 @@ int main (int argc, char ** argv)
     }
 
     nsf = temp_index[size - 1] + 1;
-printf ("nsf = %d\n", nsf); 
-    // data is in f_idx subfile.
-    int f_idx = data_out[rank];
-    char temp_string[100], * fname;
-    strcpy (temp_string, filename);
-    fname = strtok (temp_string, ".");
 
-    sprintf (temp_string
-            ,"%s_%d.bp"
-            ,fname
-            ,f_idx
-            );
-    file = H5Fopen(temp_string, H5F_ACC_RDONLY, H5P_DEFAULT);
-    sprintf (temp_string, "temperature_%d", rank);
-    dataset = H5Dopen(file, temp_string);
-    filespace = H5Dget_space(dataset);    /* Get filespace handle first. */
-    ndims     = H5Sget_simple_extent_ndims(filespace);
+    int group_size = size / nsf;
+    int grpid = rank / group_size;
+    int token;
+    MPI_Status status;
+    MPI_Comm new_comm;
+    MPI_Comm_split (comm, grpid, rank, &new_comm);
+    int new_rank;
+    MPI_Comm_rank (new_comm, &new_rank);
 
-    hsize_t dims[ndims];
-    herr_t status_n  = H5Sget_simple_extent_dims(filespace, dims, NULL);
+
+    if (new_rank == 0)
+    {
+        // data is in f_idx subfile.
+        int f_idx = data_out[rank];
+        char temp_string[100], * fname;
+        strcpy (temp_string, filename);
+        fname = strtok (temp_string, ".");
+
+        sprintf (temp_string
+                ,"%s_%d.bp"
+                ,fname
+                ,f_idx
+                );
+        file = H5Fopen(temp_string, H5F_ACC_RDONLY, H5P_DEFAULT);
+        sprintf (temp_string, "temperature_%d", rank);
+        dataset = H5Dopen(file, temp_string);
+        filespace = H5Dget_space(dataset);    /* Get filespace handle first. */
+        ndims     = H5Sget_simple_extent_ndims(filespace);
+
+        hsize_t dims[ndims];
+        herr_t status_n  = H5Sget_simple_extent_dims(filespace, dims, NULL);
 /*
     printf("dataset(temperature) rank %d, dimensions %lux%lu\n",
                ndims, (unsigned long)(dims[0]), (unsigned long)(dims[1]));
@@ -118,15 +130,14 @@ printf ("nsf = %d\n", nsf);
     /*
      * Define the memory space to read dataset.
      */
-    memspace = H5Screate_simple(ndims,dims,NULL);
+        memspace = H5Screate_simple(ndims,dims,NULL);
 
-    double data[dims[1]];
+        double data[dims[1]];
     /*
      * Read dataset back and display.
      */
-    herr_t status = H5Dread(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
+        herr_t status = H5Dread(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
                          H5P_DEFAULT, data);
-
 /*
     printf("\n");
     printf("Dataset: \n");
@@ -137,6 +148,64 @@ printf ("nsf = %d\n", nsf);
 
     printf("\n");
 */
+        MPI_Send (&token, 1, MPI_INT, new_rank + 1, 0, new_comm);
+//printf ("[%d]: send to %d\n", new_rank, new_rank +1);
+    }
+    else
+    {
+        MPI_Recv (&token, 1, MPI_INT, new_rank - 1, 0, new_comm, &status);
+
+        // data is in f_idx subfile.
+        int f_idx = data_out[rank];
+        char temp_string[100], * fname;
+        strcpy (temp_string, filename);
+        fname = strtok (temp_string, ".");
+
+        sprintf (temp_string
+                ,"%s_%d.bp"
+                ,fname
+                ,f_idx
+                );
+        file = H5Fopen(temp_string, H5F_ACC_RDONLY, H5P_DEFAULT);
+        sprintf (temp_string, "temperature_%d", rank);
+        dataset = H5Dopen(file, temp_string);
+        filespace = H5Dget_space(dataset);    /* Get filespace handle first. */
+        ndims     = H5Sget_simple_extent_ndims(filespace);
+
+        hsize_t dims[ndims];
+        herr_t status_n  = H5Sget_simple_extent_dims(filespace, dims, NULL);
+/*
+    printf("dataset(temperature) rank %d, dimensions %lux%lu\n",
+               ndims, (unsigned long)(dims[0]), (unsigned long)(dims[1]));
+*/
+    /*
+     * Define the memory space to read dataset.
+     */
+        memspace = H5Screate_simple(ndims,dims,NULL);
+
+        double data[dims[1]];
+    /*
+     * Read dataset back and display.
+     */
+        herr_t status = H5Dread(dataset, H5T_NATIVE_DOUBLE, memspace, filespace,
+                         H5P_DEFAULT, data);
+/*
+    printf("\n");
+    printf("Dataset: \n");
+    for (j = 0; j < dims[1]; j++)
+    {
+        printf("%f ", data[j]);
+    }
+
+    printf("\n");
+*/
+        if (new_rank != group_size - 1)
+        {
+            MPI_Send (&token, 1, MPI_INT, new_rank + 1, 0, new_comm);
+//printf ("[%d]: send to %d\n", new_rank, new_rank +1);
+        }
+    }
+
     MPI_Barrier (comm);
     struct timeval t2;
     gettimeofday (&t2, NULL);
