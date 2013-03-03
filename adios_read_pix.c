@@ -45,7 +45,7 @@ int main (int argc, char ** argv)
     struct timeval t1;
     gettimeofday (&t1, NULL);
 
-    strcpy (filename, "adios_global.bp");
+    strcpy (filename, "pixie3d.bp");
     {
         file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
         dataset = H5Dopen(file, "index");
@@ -116,7 +116,7 @@ int main (int argc, char ** argv)
                 ,f_idx
                 );
         file = H5Fopen(temp_string, H5F_ACC_RDONLY, H5P_DEFAULT);
-        sprintf (temp_string, "temperature_%d", rank);
+        sprintf (temp_string, "Var7_%d", rank);
         dataset = H5Dopen(file, temp_string);
         filespace = H5Dget_space(dataset);    /* Get filespace handle first. */
         ndims     = H5Sget_simple_extent_ndims(filespace);
